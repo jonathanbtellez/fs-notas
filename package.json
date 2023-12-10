@@ -6,11 +6,11 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build:ui": "@powershell Remove-Item -Recurse -Force build && cd ../../fs/part2 && npm run build && @powershell Copy-Item build -Recurse ../../fs-back/notas/",
     "deploy": "git push origin master",
     "deploy:full": "npm run build:ui && git add . && git commit -m uibuild && npm run deploy",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "jest --verbose"
   },
   "author": "Jonathan Tellez",
   "license": "MIT",
@@ -23,6 +23,10 @@
   },
   "devDependencies": {
     "eslint": "^8.55.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.0.2"
+  },
+  "jest": {
+    "testEnvironment": "node"
   }
 }
