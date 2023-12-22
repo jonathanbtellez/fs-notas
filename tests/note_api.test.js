@@ -4,6 +4,8 @@ const helper = require('./test_helper')
 const app = require('../app')
 const api = supertest(app)
 
+const bcrypt = require('bcrypt')
+const User = require('../models/user')
 const Note = require('../models/note')
 
 beforeEach(async () => {
@@ -18,19 +20,19 @@ beforeEach(async () => {
 describe('when there is initially some notes saved', () => {
   test('notes are returned as json', async () => {
     await api
-      .get('/api/notes')
+      .get('/api/v1/notes')
       .expect(200)
       .expect('Content-Type', /application\/json/)
   })
 
   test('all notes are returned', async () => {
-    const response = await api.get('/api/notes')
+    const response = await api.get('/api/v1/notes')
 
     expect(response.body).toHaveLength(helper.initialNotes.length)
   })
 
   test('a specific note is within the returned notes', async () => {
-    const response = await api.get('/api/notes')
+    const response = await api.get('/api/v1/notes')
 
     const contents = response.body.map(r => r.content)
 
@@ -47,7 +49,7 @@ describe('viewing a specific note', () => {
     const noteToView = notesAtStart[0]
 
     const resultNote = await api
-      .get(`/api/notes/${noteToView.id}`)
+      .get(`/api/v1/notes/${noteToView.id}`)
       .expect(200)
       .expect('Content-Type', /application\/json/)
     const processedNoteToView = JSON.parse(JSON.stringify(noteToView))
@@ -61,7 +63,7 @@ describe('viewing a specific note', () => {
     console.log(validNonexistingId)
 
     await api
-      .get(`/api/notes/${validNonexistingId}`)
+      .get(`/api/v1/notes/${validNonexistingId}`)
       .expect(404)
   })
 
@@ -69,7 +71,7 @@ describe('viewing a specific note', () => {
     const invalidId = '5a3d5da59070081a82a3445'
 
     await api
-      .get(`/api/notes/${invalidId}`)
+      .get(`/api/v1/notes/${invalidId}`)
       .expect(400)
   })
 })
@@ -82,7 +84,7 @@ describe('addition of a new note', () => {
     }
 
     await api
-      .post('/api/notes')
+      .post('/api/v1/notes')
       .send(newNote)
       .expect(200)
       .expect('Content-Type', /application\/json/)
@@ -103,7 +105,7 @@ describe('addition of a new note', () => {
     }
 
     await api
-      .post('/api/notes')
+      .post('/api/v1/notes')
       .send(newNote)
       .expect(400)
 
@@ -119,7 +121,7 @@ describe('deletion of a note', () => {
     const noteToDelete = notesAtStart[0]
 
     await api
-      .delete(`/api/notes/${noteToDelete.id}`)
+      .delete(`/api/v1/notes/${noteToDelete.id}`)
       .expect(204)
 
     const notesAtEnd = await helper.notesInDb()
@@ -132,6 +134,62 @@ describe('deletion of a note', () => {
 
     expect(contents).not.toContain(noteToDelete.content)
   })
+})
+
+describe('when there is initially one user in db', () => {
+  beforeEach(async () => {
+    await User.deleteMany({})
+
+    const passwordHash = await bcrypt.hash('sekret', 10)
+    const user = new User({ username: 'root', passwordHash })
+
+    await user.save()
+  })
+
+  test('creation succeeds with a fresh username', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'mluukkai',
+      name: 'Matti Luukkainen',
+      password: 'salainen',
+    }
+
+    await api
+      .post('/api/v1/users')
+      .send(newUser)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length + 1)
+
+    const usernames = usersAtEnd.map(u => u.username)
+    expect(usernames).toContain(newUser.username)
+  })
+
+
+  test('creation fails with proper statuscode and message if username already taken', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'root',
+      name: 'Superuser',
+      password: 'salainen',
+    }
+
+    const result = await api
+      .post('/api/v1/')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    expect(result.body.error).toContain('`username` to be unique')
+
+    const usersAtEnd = await helper.usersInDb()
+    expect(usersAtEnd).toHaveLength(usersAtStart.length)
+  })
+
 })
 
 afterAll(() => {
