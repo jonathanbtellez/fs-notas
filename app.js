@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const config = require('./utils/config')
 const express = require('express')
 require('express-async-errors')
@@ -27,6 +28,12 @@ app.use(middleware.requestLogger)
 app.use('/api/v1/login', loginRouter)
 app.use('/api/v1/notes', notesRouter)
 app.use('/api/v1/users', usersRouter)
+
+if (process.env.NODE_ENV === 'test') {
+  const testingRouter = require('./controllers/testing')
+  app.use('/api/v1/testing', testingRouter)
+}
+
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)
 
